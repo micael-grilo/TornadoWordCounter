@@ -30,8 +30,8 @@
             </div>
             <div id="navbar" class="collapse navbar-collapse">
                 <ul class="nav navbar-nav">
-                    <li class="active"><a href="/">Home</a></li>
-                    <li><a href="/admin">Admin</a></li>
+                    <li><a href="/">Home</a></li>
+                    <li class="active"><a href="/admin">Admin</a></li>
                 </ul>
             </div>
         </div>
@@ -40,19 +40,14 @@
     <div class="container">
 
         <div class="starter-template">
-            <form action="/" method="POST">
-                <input class="url-form" type="text" name="url" placeholder="Type url here...">
-                <input type="submit" value="Submit">
-            </form>
-        </div>
-        <div class="starter-template">
-            <div id="tegcloud">
+            <div id="tegcloud-admin">
+                <ul left>
                 {% for word in words %}
-                <a title="x{{ words[word] }}" href="#" style="font-size: {{ words[word]*4 }}%">{{word}}</a> 
-                {% end %} 
+                    <li>{{word}} ( {{ words[word] }}x)</li>
+                {% end %}
+                </ul>
             </div>
         </div>
-    </div>
 </body>
 
 

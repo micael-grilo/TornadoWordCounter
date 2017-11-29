@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import os.path, re, nltk
+import os.path, re, nltk, ast
 
 from BeautifulSoup import BeautifulSoup 
-from collections import Counter
+from collections import Counter, OrderedDict
 import sqlite3, uuid, hashlib
 
 from tornado import gen, ioloop, web
@@ -17,11 +17,14 @@ define("port", default=8888, help="run on the given port", type=int)
 #define("mysql_password", default="password", help="blog database password")
 
 salt = uuid.uuid4().hex
-print salt
-conn = sqlite3.connect('words.db')
+salt = '3be5a66a0fe14e0883157b13697afe2a'
+from Crypto.PublicKey import RSA
+
+
+conn = sqlite3.connect('database/words.db')
 c = conn.cursor()
 try:
-    c.execute('''CREATE TABLE words (id text, word text, count int)''')
+    c.execute('''CREATE TABLE words (id text, word BLOB, count int)''')
 except sqlite3.OperationalError:
     pass
 
@@ -48,27 +51,26 @@ class Application(web.Application):
 
 class MainHandler(web.RequestHandler):
     def get(self):
-        self.render("index.html", title="My title")
+        self.render("index.html", title="Home Page", words = getWords())
 
     @gen.coroutine
     def post(self):
-        self.set_header("Content-Type", "text/plain")
-        self.write("You wrote " + self.get_body_argument("url"))
         http_client = AsyncHTTPClient()
         response = yield http_client.fetch(self.get_body_argument("url"))
-        saveWords(top100_webPageWords(response.body))
-        #self.render("index.html", title="Results")
+        saveWords(GetPageWords(response.body))
+        self.render("index.html", title="Home Page", words = getWords())
 
 class AdminHandler(web.RequestHandler):
     def get(self):
-        self.render("index.html", title="My title")
+        words = OrderedDict(sorted(getWords().items(), key=lambda x: x[1], reverse=True))
+        self.render("admin.html", title="Admin Page", words = words)
 
 
 ########################################################
 # -------------    Application Utilities ------------- #
 ########################################################
 
-def top100_webPageWords(body):
+def GetPageWords(body):
     soup = BeautifulSoup(body)
     visible_text_string = soup.getText()
     lst = re.findall(r'\b\w+\b', visible_text_string)
@@ -80,18 +82,33 @@ def top100_webPageWords(body):
     occs = [(word,count) for word,count in counter.most_common(100)]
     return occs
 
+
 def saveWords(words):
-    print len(words)
+    publickey = open('keys/public.key', "r")
+    encryptor = RSA.importKey(publickey)
     for word, value in words:
-        word_id = hashlib.sha1(salt.encode() + word.encode()).hexdigest()
-        word_encr = word
+        word_id = str(hashlib.sha1(salt.encode() + word.encode()).hexdigest())
+        word_encrypted = encryptor.encrypt(str(word),32)
         count = value
-        print word_id, word, count
-        #c.execute("insert into words values (?, ?, ?)", (word_id, word_encr, count))
+        c.execute("SELECT count FROM words WHERE id=?", (word_id,))
+        rows = c.fetchone()
+        if rows:
+            c.execute("UPDATE words SET count = ? WHERE id = ? ", ((count+rows[0]), word_id))
+        else:
+            c.execute("INSERT INTO words VALUES (?, ?, ?)", (word_id, sqlite3.Binary(str(word_encrypted)), count))
     conn.commit()
 
 
-
+def getWords():
+    word_dict = {}
+    privatekey = open('keys/private.key', "r")
+    decryptor = RSA.importKey(privatekey)
+    c.execute("SELECT word, count FROM words ORDER BY Count DESC LIMIT 100")
+    rows = c.fetchall()
+    for row in rows:
+        word = decryptor.decrypt(ast.literal_eval(str(row[0])))
+        word_dict[word] = row[1]
+    return word_dict
 
 
 if __name__ == "__main__":

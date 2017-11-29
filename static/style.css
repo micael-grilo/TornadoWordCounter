@@ -5,3 +5,10 @@ body {
   padding: 40px 15px;
   text-align: center;
 }
+#tegcloud-admin
+{
+    text-align: left;
+}
+.url-form{
+  width: 400px;
+}
