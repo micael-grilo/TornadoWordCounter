@@ -9,6 +9,10 @@ body {
 {
     text-align: left;
 }
+#tegcloud
+{
+  font-size: 80px;
+}
 .url-form{
   width: 400px;
 }

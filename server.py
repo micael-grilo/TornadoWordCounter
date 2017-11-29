@@ -43,7 +43,7 @@ class Application(web.Application):
             (r"/admin", AdminHandler)
         ]
         settings = {
-            "debug": True,
+            "debug": False,
             "template_path": os.path.join(os.path.dirname(__file__),"templates"),
             "static_path": os.path.join(os.path.dirname(__file__),"static")
         }

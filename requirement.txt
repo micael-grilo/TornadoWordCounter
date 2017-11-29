@@ -1,0 +1,7 @@
+tornado
+nltk
+BeautifulSoup
+ast
+haslib
+sqlite3
+Crypto
