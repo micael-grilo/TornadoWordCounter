@@ -4,7 +4,7 @@ import os.path, re, nltk
 
 from BeautifulSoup import BeautifulSoup 
 from collections import Counter
-import sqlite3
+import sqlite3, uuid, hashlib
 
 from tornado import gen, ioloop, web
 from tornado.httpclient import AsyncHTTPClient
@@ -16,6 +16,8 @@ define("port", default=8888, help="run on the given port", type=int)
 #define("mysql_user", default="user", help="blog database user")
 #define("mysql_password", default="password", help="blog database password")
 
+salt = uuid.uuid4().hex
+print salt
 conn = sqlite3.connect('words.db')
 c = conn.cursor()
 try:
@@ -54,8 +56,7 @@ class MainHandler(web.RequestHandler):
         self.write("You wrote " + self.get_body_argument("url"))
         http_client = AsyncHTTPClient()
         response = yield http_client.fetch(self.get_body_argument("url"))
-        print top100_webPageWords(response.body)
-        return
+        saveWords(top100_webPageWords(response.body))
         #self.render("index.html", title="Results")
 
 class AdminHandler(web.RequestHandler):
@@ -79,9 +80,15 @@ def top100_webPageWords(body):
     occs = [(word,count) for word,count in counter.most_common(100)]
     return occs
 
-def saveWord(word):
-    print word
-
+def saveWords(words):
+    print len(words)
+    for word, value in words:
+        word_id = hashlib.sha1(salt.encode() + word.encode()).hexdigest()
+        word_encr = word
+        count = value
+        print word_id, word, count
+        #c.execute("insert into words values (?, ?, ?)", (word_id, word_encr, count))
+    conn.commit()
 
 
 
