@@ -2,6 +2,6 @@ tornado
 nltk
 BeautifulSoup
 ast
-haslib
-sqlite3
+uuid
+pysqlite
 Crypto
