@@ -1,6 +1,7 @@
 tornado
 nltk
 bs4
+lxml
 ast
 uuid
 pysqlite
