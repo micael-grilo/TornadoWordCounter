@@ -1,6 +1,6 @@
 tornado
 nltk
-BeautifulSoup
+bs4
 ast
 uuid
 pysqlite

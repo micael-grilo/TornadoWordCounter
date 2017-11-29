@@ -3,7 +3,7 @@
 import os.path, re, nltk, ast
 import sqlite3, uuid, hashlib
 
-from BeautifulSoup import BeautifulSoup 
+from bs4 import BeautifulSoup
 from collections import Counter, OrderedDict
 from Crypto.PublicKey import RSA
 
@@ -79,9 +79,9 @@ def GetPageWords(body):
     Parse page looking for words,
     Return top 100 nouns and verbs only
     '''
-    soup = BeautifulSoup(body)
+    soup = BeautifulSoup(body, 'lxml')
     [s.extract() for s in soup(['style', 'script', '[document]', 'head', 'title'])]
-    visible_text_string = soup.getText()
+    visible_text_string = soup.getText().encode('utf-8')
     lst = re.findall(r'\b\w+\b', visible_text_string)
     tokens = nltk.word_tokenize(' '.join(lst).lower())
     tagged = nltk.pos_tag(tokens)
