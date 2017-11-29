@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 import os.path, re, nltk, ast
+import sqlite3, uuid, hashlib
 
 from BeautifulSoup import BeautifulSoup 
 from collections import Counter, OrderedDict
-import sqlite3, uuid, hashlib
+from Crypto.PublicKey import RSA
 
 from tornado import gen, ioloop, web
 from tornado.httpclient import AsyncHTTPClient
@@ -16,10 +17,13 @@ define("port", default=8888, help="run on the given port", type=int)
 #define("mysql_user", default="user", help="blog database user")
 #define("mysql_password", default="password", help="blog database password")
 
-salt = uuid.uuid4().hex
-salt = '3be5a66a0fe14e0883157b13697afe2a'
-from Crypto.PublicKey import RSA
 
+########################################################
+# -----    Application Salt and DB Connection -------- #
+########################################################
+
+#salt = uuid.uuid4().hex
+salt = '3be5a66a0fe14e0883157b13697afe2a'
 
 conn = sqlite3.connect('database/words.db')
 c = conn.cursor()
@@ -51,18 +55,18 @@ class Application(web.Application):
 
 class MainHandler(web.RequestHandler):
     def get(self):
-        self.render("index.html", title="Home Page", words = getWords())
+        self.render("index.html", title="Home Page", words = getWordsFromDB())
 
     @gen.coroutine
     def post(self):
         http_client = AsyncHTTPClient()
         response = yield http_client.fetch(self.get_body_argument("url"))
         saveWords(GetPageWords(response.body))
-        self.render("index.html", title="Home Page", words = getWords())
+        self.render("index.html", title="Home Page", words = getWordsFromDB())
 
 class AdminHandler(web.RequestHandler):
     def get(self):
-        words = OrderedDict(sorted(getWords().items(), key=lambda x: x[1], reverse=True))
+        words = OrderedDict(sorted(getWordsFromDB().items(), key=lambda x: x[1], reverse=True))
         self.render("admin.html", title="Admin Page", words = words)
 
 
@@ -71,19 +75,28 @@ class AdminHandler(web.RequestHandler):
 ########################################################
 
 def GetPageWords(body):
+    '''
+    Parse page looking for words,
+    Return top 100 nouns and verbs only
+    '''
     soup = BeautifulSoup(body)
+    [s.extract() for s in soup(['style', 'script', '[document]', 'head', 'title'])]
     visible_text_string = soup.getText()
     lst = re.findall(r'\b\w+\b', visible_text_string)
     tokens = nltk.word_tokenize(' '.join(lst).lower())
     tagged = nltk.pos_tag(tokens)
-    nouns = [word for word,pos in tagged if (pos == 'NN' or pos == 'NNP' or pos == 'NNS' or pos == 'NNPS')]
-    words = [x.encode('utf-8') for x in nouns]
-    counter = Counter(words)
+    nouns = [word.encode('utf-8') for word,pos in tagged if (pos == 'NN' or pos == 'VB')]
+    counter = Counter(nouns)
     occs = [(word,count) for word,count in counter.most_common(100)]
     return occs
 
-
 def saveWords(words):
+    '''
+    Save words in DB
+    Key : hashed salted word
+    Word : Encrypted word with public key
+    Count : Word count
+    '''
     publickey = open('keys/public.key', "r")
     encryptor = RSA.importKey(publickey)
     for word, value in words:
@@ -99,7 +112,10 @@ def saveWords(words):
     conn.commit()
 
 
-def getWords():
+def getWordsFromDB():
+    '''
+    Retrieve words from DB
+    '''
     word_dict = {}
     privatekey = open('keys/private.key', "r")
     decryptor = RSA.importKey(privatekey)
@@ -110,6 +126,10 @@ def getWords():
         word_dict[word] = row[1]
     return word_dict
 
+
+########################################################
+# -------------    Application Main ------------------ #
+########################################################
 
 if __name__ == "__main__":
     #nltk.download('punkt')
